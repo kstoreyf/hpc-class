@@ -84,7 +84,8 @@ void f ( int n )
     cout << "  " << i << "  " << x[i] << "\n";
   }
 
-  delete [] x;
+  // Use "free" instead of "delete" because memory was malloced, not allocated dynamically with "new"
+  free(x);
 
   return;
 }
