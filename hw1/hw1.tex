@@ -1,0 +1,111 @@
+\documentclass[12]{article}
+
+\usepackage{geometry}
+\geometry{legalpaper, margin=1in}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{language=C,
+                basicstyle=\ttfamily,
+                keywordstyle=\color{blue}\ttfamily,
+                stringstyle=\color{red}\ttfamily,
+                commentstyle=\color{red}\ttfamily,
+                breaklines=true
+}
+\parindent=0pt
+
+\title{Homework 1 \\
+ Advanced Topics in Numerical Analysis: \\
+ High Performance Computing}
+ \author{Kate Storey-Fisher}
+
+
+
+\begin{document}
+\maketitle
+
+\begin{enumerate}[label=\textbf{\arabic*}.]
+
+\item \textbf{\textit{Class presentation on parallel HPC application}}
+
+\item \textbf{Matrix-matrix multiplication}
+
+    I am using an Intel Core i9-9880H CPU @ 2.30GHz processor.
+
+    With the -O0 flag, we get the following output:
+    
+    \vspace{1em}
+    \begin{tabular}{ c | c c c }         
+	Dimension & Time (s) &  Gflop/s  & GB/s \\
+	\hline
+         50 &   0.036967 &   0.338143 &   0.179216 \\
+       100 &   0.244645 &   0.408755 &   0.210509 \\
+       150 &   0.806536 &   0.418456 &   0.213413 \\
+       200 &   1.896650 &   0.421796 &   0.214062 \\
+       250 &   3.646597 &   0.428482 &   0.216812 \\
+       300 &   6.418632 &   0.420650 &   0.212428 \\
+       350 &  10.407662 &   0.411956 &   0.207744 \\
+       400 &  15.701248 &   0.407611 &   0.205334 \\
+       450 &  24.500047 &   0.371938 &   0.187209 \\
+       500 &  32.637298 &   0.382997 &   0.192648 \\
+       550 &  41.629116 &   0.399660 &   0.200920 \\
+   \end{tabular}
+   \vspace{1em}
+       
+    With the -O3 flag, we get the following output:
+    
+    \vspace{1em}
+    \begin{tabular}{ c | c c c }         
+	Dimension & Time (s) &  Gflop/s  & GB/s \\
+	\hline
+         50 &   0.005134 &   2.434934 &   1.290515 \\
+       100 &   0.040673 &   2.458632 &   1.266195 \\
+       150 &   0.138500 &   2.436819 &   1.242778 \\
+       200 &   0.341425 &   2.343119 &   1.189133 \\
+       250 &   0.677272 &   2.307050 &   1.167367 \\
+       300 &   1.260063 &   2.142751 &   1.082089 \\
+       350 &   1.962442 &   2.184778 &   1.101752 \\
+       400 &   3.248531 &   1.970121 &   0.992449 \\
+       450 &   4.273002 &   2.132576 &   1.073396 \\
+       500 &   5.692926 &   2.195707 &   1.104441 \\
+       550 &   7.870565 &   2.113889 &   1.062710 \\
+    \end{tabular}
+    \vspace{1em}
+
+    We see that with -O3 optimzation, we achieve a 5-6x speedup.
+    In this case, the Gflop/s approaches (and, interestingly, sometimes surpasses) the capability of the processor.
+
+\item \textbf{Solving the Laplace equation}
+
+\begin{enumerate}[label=\alph*.]
+    \item My code listing is as follows. It uses the Jacobi method to solve the Laplace equation.
+    
+     	\lstinputlisting{laplace.cpp}
+	        
+    \item I have output the norm after each iteration. The final results are in the next answer.
+    \item These are the results of running my program using a 2.3 GHz Intel Core i9 processor with 16 GB memory.
+    The column $r_\mathrm{max}/r_0$ describes the ratio between the residual norm of my solution and the true solution between the maximum iteration (we terminate at 5000) and the initial value at iteration 0. 
+    
+   \vspace{1em}
+   \begin{tabular}{ c c | c c c }
+         optimization flag & $N$ & time (s) & $N_\mathrm{iterations}$ & $r_\mathrm{max}/r_0$ \\ 
+         \hline
+         -O0 & 100 & 0.0637 & 5000 & $8.113 \times 10^{-2}$ \\  
+         -O3 & 100 & 0.0568 & 5000 & $8.113 \times 10^{-2}$ \\ 
+         -O0 & 10000 & 2.154 & 5000 & $9.921 \times 10^{-1}$ \\  
+         -O3 & 10000 & 1.258 & 5000 &  $9.921 \times 10^{-1}$
+     \end{tabular}
+     \vspace{1em}
+     
+     We see that increasing N leads to slower convergence in terms of the decrease in the residual for the same number of iterations. 
+     Increasing N also takes a longer time for the same number of iterations.
+     Using a more aggressive optimization flag reduces the time, and reduces it more dramatically for larger $N$.
+
+ \end{enumerate}
+
+\end{enumerate}
+
+
+ 
+\end{document}
