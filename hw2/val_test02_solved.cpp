@@ -78,9 +78,15 @@ void junk_data ( )
 //
 //  X = { 0, 1, 2, 3, 4, ?a, ?b, ?c, ?d, ?e }.
 //
+// We left variables 5-9 uninitialized; we should initialize all of them.
+// We initialize them all to zero.
   for ( i = 0; i < 5; i++ )
   {
     x[i] = i;
+  }
+  for (i = 5; i < 10; i++ )
+  {
+    x[i] = 0;
   }
 //
 //  Copy some values.
