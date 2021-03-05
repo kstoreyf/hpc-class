@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 #include <math.h>
-// #include <omp.h> 
+#include <omp.h> 
 #include "utils.h"
 
-#define BLOCK_SIZE 16
+#define BLOCK_SIZE 4
 
 // Note: matrices are stored in column major order; i.e. the array elements in
 // the (m x n) matrix C are stored in the sequence: {C_00, C_10, ..., C_m0,
@@ -26,11 +26,34 @@ void MMult0(long m, long n, long k, double *a, double *b, double *c) {
 
 void MMult1(long m, long n, long k, double *a, double *b, double *c) {
   // TODO: See instructions below
+  // jj, pp, ii index blocks
+  #pragma omp parallel for
+  for (long jj = 0; jj < n; jj+=BLOCK_SIZE) {
+    for (long pp = 0; pp < k; pp+=BLOCK_SIZE) {
+      for (long ii = 0; ii < m; ii+=BLOCK_SIZE) {
+
+        // j, p, i index elements within a block
+        for (long j = jj; j < jj+BLOCK_SIZE; j++) {
+          for (long p = pp; p < pp+BLOCK_SIZE; p++) {
+            for (long i = ii; i < ii+BLOCK_SIZE; i++) {
+              double A_ip = a[i+p*m];
+              double B_pj = b[p+j*k];
+              double C_ij = c[i+j*m];
+              C_ij = C_ij + A_ip * B_pj;
+              c[i+j*m] = C_ij;
+            } 
+          }
+        }
+
+      }
+    }
+  }
 }
 
 int main(int argc, char** argv) {
   const long PFIRST = BLOCK_SIZE;
   const long PLAST = 2000;
+  //const long PLAST = 2000;
   const long PINC = std::max(50/BLOCK_SIZE,1) * BLOCK_SIZE; // multiple of BLOCK_SIZE
 
   printf(" Dimension       Time    Gflop/s       GB/s        Error\n");
@@ -58,8 +81,12 @@ int main(int argc, char** argv) {
       MMult1(m, n, k, a, b, c);
     }
     double time = t.toc();
-    double flops = 0; // TODO: calculate from m, n, k, NREPEATS, time
-    double bandwidth = 0; // TODO: calculate from m, n, k, NREPEATS, time
+    // TODO: calculate from m, n, k, NREPEATS, time
+    double flops = ((2*m*n*k) * NREPEATS) / time;
+    flops *= 1e-9; // convert to Gflops/s
+    // TODO: calculate from m, n, k, NREPEATS, time
+    double bandwidth = ((2*m*n + 2*m*n*k) * NREPEATS) / time;
+    bandwidth *= 1e-9; // convert to GB/s
     printf("%10ld %10f %10f %10f", p, time, flops, bandwidth);
 
     double max_err = 0;
