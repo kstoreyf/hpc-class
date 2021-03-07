@@ -1,0 +1,148 @@
+Homework 2
+Kate Storey-Fisher
+2021-03-06
+
+1. Finding Memory Bugs
+
+I have used valgrind to find the bugs in the val_test programs.
+Here are the bugs I have found and the solutions:
+
+val_test01.cpp
+Line 80: "for ( i = 2; i <= n; i++ )"
+This loop includes the value n, which is one past the final malloced
+address in the array. I fixed "<= n" to "< n", so we don't try to access
+un-alloacted memory.
+
+val_test02.cpp
+Line 81:
+Only the first 5 values of the length-10 array are initialized. 
+The others are left uninitalialized.
+I solve this by initializing the latter 5 values to zero.
+
+
+2. Optiminizing matrix-matrix multiplication
+
+I have improved the MM multiplication code using blocking.
+I am running on a Intel(R) Xeon(R) Platinum 8268 CPU @ 2.90GHz machine 
+with 24 CPU cores and cache size 36608 KB = 36.608 MB.
+
+The reference solution has the following timings for a variety
+of matrix dimensions (assuming a flop rate 2*m*n + m*k*(n+1), 
+as the matrix is in column-major order but we are looping over it
+in the order N->K->M):
+ Dimension       Time    Gflop/s       GB/s        Error
+        16   0.130744  15.297049   9.082623 0.000000e+00
+       256   0.120594  16.694624   8.445132 0.000000e+00
+       496   0.343425   6.395664   3.217174 0.000000e+00
+       736   0.383487   6.237845   3.131635 0.000000e+00
+       976   0.596708   6.232294   3.125725 0.000000e+00
+      1216   0.618071   5.818253   2.916303 0.000000e+00
+      1456   1.236381   4.993004   2.501646 0.000000e+00
+      1696   2.171038   4.494073   2.251011 0.000000e+00
+      1936   3.583857   4.049444   2.027860 0.000000e+00
+
+We first investigate the importance of the ordering of the loops.
+We find that ordering the loops j->p->i or p->j->i is faster
+than any other ordering by a factor of ~4 (these two are similarly fast).
+This is related to the fact that the matrices are stored in column-major
+order. 
+
+...
+
+We then implement a one-level blocking scheme. The flop calculation is the 
+same as for non-blocked: 2mnk. The memory calculation now must take into
+account that we are loading blocks into memory rather than rows/columns.
+Assume a blocksize B, with N blocks for the dimension measured by n, M blocks
+for m, and K blocks for K. Then we read in C blocks of size B^2 MN times, and 
+write it the same amount. We read in A blocks of MNK times, and same with B. 
+This totals 2B^2*MN(K+1) = 2mn(k/B + 1). We see that for large k, computational
+intensity q is flops/memory = 2mnk/(2mn(k/B + 1))=~B.
+
+We find the following timings for the blocked implementation, with various
+BLOCK_SIZEs:
+BLOCK_SIZE = 4:
+Dimension       Time    Gflop/s       GB/s        Error
+         4   0.543334   3.680976   1.840488 0.000000e+00
+       252   0.441362   4.568533   1.160262 0.000000e+00
+       500   0.503166   4.471689   1.126866 0.000000e+00
+       748   0.571469   4.394036   1.104383 0.000000e+00
+       996   0.890862   4.436368   1.113546 0.000000e+00
+      1244   0.867408   4.438822   1.113274 0.000000e+00
+      1492   1.500954   4.425568   1.109358 0.000000e+00
+      1740   2.382795   4.421718   1.107971 0.000000e+00
+      1988   3.562507   4.410862   1.104934 0.000000e+00
+BLOCK_SIZE = 8:
+ Dimension       Time    Gflop/s       GB/s        Error
+         8   0.411819   4.856505   1.214126 0.000000e+00
+       256   0.513162   3.923254   0.505732 0.000000e+00
+       504   0.449504   4.556992   0.578666 0.000000e+00
+       752   0.552321   4.619690   0.583604 0.000000e+00
+      1000   0.863414   4.632774   0.583730 0.000000e+00
+      1248   0.845773   4.596422   0.578236 0.000000e+00
+      1496   1.436834   4.660345   0.585658 0.000000e+00
+      1744   2.289649   4.633407   0.581833 0.000000e+00
+      1992   3.422203   4.619470   0.579753 0.000000e+00
+BLOCK_SIZE = 16:
+ Dimension       Time    Gflop/s       GB/s        Error
+        16   0.189501  10.554074   1.319259 0.000000e+00
+       256   0.244081   8.248352   0.547742 0.000000e+00
+       496   0.215763  10.179830   0.656763 0.000000e+00
+       736   0.241309   9.913136   0.633040 0.000000e+00
+       976   0.369216  10.072310   0.639839 0.000000e+00
+      1216   0.367817   9.776854   0.619094 0.000000e+00
+      1456   0.609601  10.126714   0.639875 0.000000e+00
+      1696   0.980482   9.951027   0.627807 0.000000e+00
+      1936   1.445361  10.040835   0.632739 0.000000e+00
+BLOCK_SIZE = 32:
+ Dimension       Time    Gflop/s       GB/s        Error
+        32   0.168949  11.838047   0.739878 0.000000e+00
+       256   0.211449   9.521302   0.334733 0.000000e+00
+       480   0.191440  11.553720   0.385124 0.000000e+00
+       704   0.185548  11.282689   0.368611 0.000000e+00
+       928   0.283493  11.276180   0.364532 0.000000e+00
+      1152   0.295416  10.350298   0.332431 0.000000e+00
+      1376   0.503803  10.342485   0.330719 0.000000e+00
+      1600   0.780725  10.492812   0.334458 0.000000e+00
+      1824   1.139093  10.654802   0.338804 0.000000e+00
+BLOCK_SIZE = 64:
+ Dimension       Time    Gflop/s       GB/s        Error
+        64   0.144761  13.816955   0.431780 0.000000e+00
+       256   0.178563  11.274827   0.220211 0.000000e+00
+       448   0.180676  11.943881   0.213284 0.000000e+00
+       640   0.188084  11.150071   0.191642 0.000000e+00
+       832   0.183414  12.560232   0.211350 0.000000e+00
+      1024   0.215178   9.980017   0.165684 0.000000e+00
+      1216   0.289229  12.433378   0.204496 0.000000e+00
+      1408   0.499248  11.182050   0.182661 0.000000e+00
+      1600   0.657034  12.468149   0.202607 0.000000e+00
+      1792   1.074968  10.706528   0.173264 0.000000e+00
+      1984   1.280944  12.193404   0.196668 0.000000e+00
+BLOCK_SIZE = 128:
+ Dimension       Time    Gflop/s       GB/s        Error
+       128   0.205303   9.745020   0.152266 0.000000e+00
+       256   0.208307   9.664891   0.113260 0.000000e+00
+       384   0.210232   9.696088   0.101001 0.000000e+00
+       512   0.220959   9.718937   0.094911 0.000000e+00
+       640   0.216771   9.674497   0.090698 0.000000e+00
+       768   0.281815   9.644296   0.087904 0.000000e+00
+       896   0.298710   9.632392   0.086003 0.000000e+00
+      1024   0.222077   9.669984   0.084990 0.000000e+00
+      1152   0.318060   9.613430   0.083450 0.000000e+00
+      1280   0.435568   9.629500   0.082754 0.000000e+00
+      1408   0.581382   9.602327   0.081838 0.000000e+00
+      1536   0.753579   9.617777   0.081400 0.000000e+00
+      1664   0.959573   9.603114   0.080795 0.000000e+00
+      1792   1.202084   9.574345   0.080142 0.000000e+00
+      1920   1.486311   9.524101   0.079368 0.000000e+00
+
+We see that the blocking gives us significant speedup once we get up to
+BLOCK_SIZE=32. The optimal value is BLOCK_SIZE=64, which is slighly faster
+than 32. The performance starts to degrade slightly once we get to
+BLOCK_SIZE=128.
+
+
+3. Approximating Special Functions Using Taylor Series & Vectorization
+
+I have improved the function sin4_intrin() for AVX intrinsics to an
+accuracy of about 12 digits, by adding terms to the taylor series up
+to x^11.
