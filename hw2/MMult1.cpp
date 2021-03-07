@@ -5,11 +5,11 @@
 #include <omp.h> 
 #include "utils.h"
 
-#define BLOCK_SIZE 4
+#define BLOCK_SIZE 32
 
 // Note: matrices are stored in column major order; i.e. the array elements in
 // the (m x n) matrix C are stored in the sequence: {C_00, C_10, ..., C_m0,
-// C_01, C_11, ..., C_m1, C_02, ..., C_0n, C_1n, ..., C_mn}
+// C_00, C_11, ..., C_m1, C_02, ..., C_0n, C_1n, ..., C_mn}
 void MMult0(long m, long n, long k, double *a, double *b, double *c) {
   for (long j = 0; j < n; j++) {
     for (long p = 0; p < k; p++) {
@@ -27,6 +27,7 @@ void MMult0(long m, long n, long k, double *a, double *b, double *c) {
 void MMult1(long m, long n, long k, double *a, double *b, double *c) {
   // TODO: See instructions below
   // jj, pp, ii index blocks
+  omp_set_num_threads(16);
   #pragma omp parallel for
   for (long jj = 0; jj < n; jj+=BLOCK_SIZE) {
     for (long pp = 0; pp < k; pp+=BLOCK_SIZE) {
@@ -53,8 +54,7 @@ void MMult1(long m, long n, long k, double *a, double *b, double *c) {
 int main(int argc, char** argv) {
   const long PFIRST = BLOCK_SIZE;
   const long PLAST = 2000;
-  //const long PLAST = 2000;
-  const long PINC = std::max(50/BLOCK_SIZE,1) * BLOCK_SIZE; // multiple of BLOCK_SIZE
+  const long PINC = std::max(250/BLOCK_SIZE,1) * BLOCK_SIZE; // multiple of BLOCK_SIZE
 
   printf(" Dimension       Time    Gflop/s       GB/s        Error\n");
   for (long p = PFIRST; p < PLAST; p += PINC) {
@@ -85,7 +85,10 @@ int main(int argc, char** argv) {
     double flops = ((2*m*n*k) * NREPEATS) / time;
     flops *= 1e-9; // convert to Gflops/s
     // TODO: calculate from m, n, k, NREPEATS, time
-    double bandwidth = ((2*m*n + 2*m*n*k) * NREPEATS) / time;
+    // For blocked:
+    double bandwidth = ((2*m*n*(k/BLOCK_SIZE + 1)) * NREPEATS) / time;
+    // For MMult0, order jpi, column-major:
+    // double bandwidth = ((2*m*n + m*k*(n+1)) * NREPEATS) / time;
     bandwidth *= 1e-9; // convert to GB/s
     printf("%10ld %10f %10f %10f", p, time, flops, bandwidth);
 
