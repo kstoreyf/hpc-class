@@ -6,6 +6,7 @@
 *.synctex.gz
 *.out
 *.out.dSYM
+*.sw*
 MMult1
 val_test01_solved
 val_test02_solved
