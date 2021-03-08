@@ -42,12 +42,21 @@ in the order N->K->M):
       1936   3.583857   4.049444   2.027860 0.000000e+00
 
 We first investigate the importance of the ordering of the loops.
-We find that ordering the loops j->p->i or p->j->i is faster
+We find that ordering the loops n->k->m (j->p->i) or k->n->m (p->j->i) is faster
 than any other ordering by a factor of ~4 (these two are similarly fast).
 This is related to the fact that the matrices are stored in column-major
-order. 
-
-...
+order. For the n->k->m case, we can read in each column j of B in the outer 
+loop and keep it in cache while we loop over the rows of A, leading to only
+nk reads from B. We still must perform nkm reads from A, but due to the loop
+order, we can do these in only kn memory transactions, as for each of the k
+columns we can loop over the m rows. The reading and writing from C each takes
+mn operations, for a total of mops=2mn + nk(m+1). The other loop orderings 
+require more reads, and/or more memory transactions. For instance, the order
+n->m->k requires looping through all of the m values in order to read all of
+the kn columns of B, requiring mnk reads (although if column j of B stays in
+the cache when looping through the m rows of A, we would expect nk reads; the
+slowdown we see may mean the cache is not large enough for this. The flops 
+remain the same for all of these orderings, flops=2nmk.
 
 We then implement a one-level blocking scheme. The flop calculation is the 
 same as for non-blocked: 2mnk. The memory calculation now must take into
@@ -137,12 +146,23 @@ BLOCK_SIZE = 128:
 
 We see that the blocking gives us significant speedup once we get up to
 BLOCK_SIZE=32. The optimal value is BLOCK_SIZE=64, which is slighly faster
-than 32. The performance starts to degrade slightly once we get to
-BLOCK_SIZE=128.
+than 32; it is faster than the reference time by a factor of about 2.
+The performance starts to degrade slightly once we get to
+BLOCK_SIZE=128, though it is still an improvement.
+
+The peak flop rate for my machine can be computed from the clock rate,
+2.90GHz. Due to vectorization we assume it can can do 4 computations/cycle
+(this is an estimate based on typical computations/cycle; my machine
+does not report this). This gives a max theoretical flop rate of 
+11.6Gflop/s. My optimal blocked version achieves flop rates up to 
+12.5Gflop/s, slightly above the peak rate. This may be do to slight 
+inaccuracies in our calculation, but it shows that we do end up utilizing
+the potential flop rate with our blocked MM method.
 
 
 3. Approximating Special Functions Using Taylor Series & Vectorization
 
 I have improved the function sin4_intrin() for AVX intrinsics to an
-accuracy of about 12 digits, by adding terms to the taylor series up
-to x^11.
+accuracy of about 12 digits, by adding terms to the Taylor series up
+to x^11, using the AVX summation and multiplication functions
+_mm256_mul_pd() and _mm256_add_pd().

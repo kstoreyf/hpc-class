@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <omp.h> 
+// #include <omp.h> 
 #include "utils.h"
 
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 64
 
 // Note: matrices are stored in column major order; i.e. the array elements in
 // the (m x n) matrix C are stored in the sequence: {C_00, C_10, ..., C_m0,
@@ -27,8 +27,11 @@ void MMult0(long m, long n, long k, double *a, double *b, double *c) {
 void MMult1(long m, long n, long k, double *a, double *b, double *c) {
   // TODO: See instructions below
   // jj, pp, ii index blocks
-  omp_set_num_threads(16);
-  #pragma omp parallel for
+
+  // Eventually we will want to parallelize with the following code;
+  // we leave this for a future assignment.
+  // omp_set_num_threads(4);
+  // #pragma omp parallel for
   for (long jj = 0; jj < n; jj+=BLOCK_SIZE) {
     for (long pp = 0; pp < k; pp+=BLOCK_SIZE) {
       for (long ii = 0; ii < m; ii+=BLOCK_SIZE) {
