@@ -56,61 +56,50 @@ void sin4_taylor(double* sinx, const double* x) {
   }
 }
 
-
 void sin4_taylor_extended(double* sinx, const double* x) {
   // To compute sinx at any x value, we check the x location
   // and choose whether to compute the sin or cos, based on
   // Euler's formula.
-  // [This takes a long time! There must be a better way 
+  // [This takes a long time! There must be a better way
   // but I can't think of it right now.]
   for (int i = 0; i < 4; i++) {
     // n is how many pi/2 shifts we need to get to the small x regime
     int n = floor((x[i]+M_PI/4)/(M_PI/2));
     // xm is x shifted to the small x regime
     double xm = x[i] - n*M_PI/2;
-    // If n is odd (x in [pi/4,3pi/4], [5pi/4, 7pi/4]...) use cosine
-    if (abs(n)%2==1) { 
-        double x1  = xm;
-        double x2  = x1 * x1;
-        double x4  = x2 * x2;
-        double x6  = x4 * x2;
-        double x8  = x6 * x2;
-        double x10 = x8 * x2;
+  
+    // Compute sin(xm) 
+    double x1  = xm;
+    double x2  = x1 * x1;
+    double x3  = x1 * x2;
+    double x5  = x3 * x2;
+    double x7  = x5 * x2;
+    double x9  = x7 * x2;
+    double x11 = x9 * x2;
 
-        double s = 1;
-        s += x2  * c2;
-        s += x4  * c4;
-        s += x6  * c6;
-        s += x8  * c8;
-        s += x10 * c10;
-        sinx[i] = s;
-    }
-    // If n is even (x in [-pi/4,pi/4], [3pi/4, 5pi/4]...) use sin
-    else {
-        double x1  = xm;
-        double x2  = x1 * x1;
-        double x3  = x1 * x2;
-        double x5  = x3 * x2;
-        double x7  = x5 * x2;
-        double x9  = x7 * x2;
-        double x11 = x9 * x2;
+    double s = x1;
+    s += x3  * c3;
+    s += x5  * c5;
+    s += x7  * c7;
+    s += x9  * c9;
+    s += x11 * c11;
+    sinx[i] = s;
 
-        double s = x1;
-        s += x3  * c3;
-        s += x5  * c5;
-        s += x7  * c7;
-        s += x9  * c9;
-        s += x11 * c11;
-        sinx[i] = s;
-    }
-    // If n is a multiple of 2 or (x in [3pi/4, 5pi/4] 
-    // or [5pi/4, 7pi/4]) use the negative
+    // Depending on the number of shifts we did, store the positive
+    // or negative sin or cosine
     int nmod = (n % 4 + 4) % 4;
-    if (nmod==2 || nmod==3){
-        sinx[i] *= -1;
+    if (nmod==1){
+      sinx[i] = sqrt(1-sinx[i]*sinx[i]); //cosx
+    }
+    else if (nmod==2){
+      sinx[i] *=-1; //-sinx
+    }
+    else if (nmod==3) {
+      sinx[i] = -sqrt(1-sinx[i]*sinx[i]); //-cosx;
     }
   }
 }
+
 
 void sin4_intrin_extended(double* sinx, const double* x) {
   // Here I implement a method for sinx that can take any x,
@@ -122,8 +111,6 @@ void sin4_intrin_extended(double* sinx, const double* x) {
   // [This is super inefficient and takes a long time! But I 
   // can't think of a better way right now.]
 #if defined(__AVX__)
-  double sinres[4];
-  double cosres[4];
   double xm[4];
   int n[4];
   // Shift angle towards small x, keep track of how much shifting
@@ -132,7 +119,8 @@ void sin4_intrin_extended(double* sinx, const double* x) {
     n[i] = floor((x[i]+M_PI/4)/(M_PI/2));
     xm[i] = x[i] - n[i]*M_PI/2;
   }
-  // sin
+
+  // Compute sin(xm)
   __m256d x1, x2, x3, x5, x7, x9, x11;
   x1  = _mm256_load_pd(xm);
   x2  = _mm256_mul_pd(x1, x1);
@@ -148,39 +136,20 @@ void sin4_intrin_extended(double* sinx, const double* x) {
   s = _mm256_add_pd(s, _mm256_mul_pd(x7 , _mm256_set1_pd(c7 )));
   s = _mm256_add_pd(s, _mm256_mul_pd(x9 , _mm256_set1_pd(c9 )));
   s = _mm256_add_pd(s, _mm256_mul_pd(x11 , _mm256_set1_pd(c11 )));
-  _mm256_store_pd(sinres, s);
-
-  // cos
-  __m256d x4, x6, x8, x10;
-  x4  = _mm256_mul_pd(x2, x2);
-  x6  = _mm256_mul_pd(x4, x2);
-  x8  = _mm256_mul_pd(x6, x2);
-  x10  = _mm256_mul_pd(x8, x2);
-
-  __m256d c = _mm256_set_pd(1.0, 1.0, 1.0, 1.0);
-  c = _mm256_add_pd(c, _mm256_mul_pd(x2 , _mm256_set1_pd(c2 )));
-  c = _mm256_add_pd(c, _mm256_mul_pd(x4 , _mm256_set1_pd(c4 )));
-  c = _mm256_add_pd(c, _mm256_mul_pd(x6 , _mm256_set1_pd(c6 )));
-  c = _mm256_add_pd(c, _mm256_mul_pd(x8 , _mm256_set1_pd(c8 )));
-  c = _mm256_add_pd(c, _mm256_mul_pd(x10 , _mm256_set1_pd(c10 )));
-  _mm256_store_pd(cosres, c);
+  _mm256_store_pd(sinx, s);
 
   // Depending on the number of shifts we did, store the positive
   // or negative sin or cosine
   for (int i = 0; i < 4; i++) {
     int nmod = (n[i] % 4 + 4) % 4;
-    if (nmod==0){ 
-      sinx[i] = sinres[i]; 
-    }
-    else if (nmod==1){ 
-      sinx[i] = cosres[i]; 
+    if (nmod==1){ 
+      sinx[i] = sqrt(1-sinx[i]*sinx[i]); 
     }
     else if (nmod==2){ 
-      sinx[i] = -sinres[i]; 
+      sinx[i] *= -1; 
     }
-    // nmod==3
-    else { 
-      sinx[i] = -cosres[i]; 
+    else if (nmod==3) { 
+      sinx[i] = -sqrt(1-sinx[i]*sinx[i]); 
     }
   }
 #else
@@ -260,7 +229,7 @@ int main() {
   double* sinx_intrin_extended = (double*) aligned_malloc(N*sizeof(double));
   for (long i = 0; i < N; i++) {
     //x[i] = (drand48()-0.5) * M_PI/2; // [-pi/4,pi/4]
-    x[i] = (drand48()-0.5) * 4*M_PI; // [-pi,pi]
+    x[i] = (drand48()-0.5) * 4*M_PI; // [-2pi,2pi] (to check that works for all x)
     sinx_ref[i] = 0;
     sinx_taylor[i] = 0;
     sinx_intrin[i] = 0;

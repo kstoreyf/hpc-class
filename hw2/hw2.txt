@@ -179,13 +179,12 @@ for x from -3pi/4 to -pi/4, we can use sin(t-pi/2) = -cost, and for x from
 outside the range -pi to pi, we can normalize to this range before evaluating. 
 
 I have implemented this in sin4_taylor_extended, and for all x it achieves a 
-very small error compared to the reference solution. I use a Taylor approximation
-for cosx up to x^10 order. This does require some overhead to figure out which
+very small error compared to the reference solution. To compute cosine I use
+the identity sin^2(x) + cos^2(x) = 1. It does require overhead to figure out which
 case we are in. My implementation is very inefficient and takes a long time
 (10x reference solution), but it works.
 
 I also implement this method in sinx_intrin_extended. I achieve a similarly small 
-error. Here we can't decide for each individual x which case to compute because
-of the blocking of 4 xs for vectorization, so for each 4 I compute both the sinx
-and cosx, and then afterwards decide which to save to the results based on the value
-of x. Again I am sure there is a much more efficient way, but this does work.
+error. I use the AVX intrinsics to compute sin(xm) as before, but do the casing
+outside, as this is different for each of the 4x values. Again I am sure there 
+is a much more efficient way, but this does work.
