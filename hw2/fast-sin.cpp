@@ -23,6 +23,15 @@ static constexpr double c9  =  1/(((double)2)*3*4*5*6*7*8*9);
 static constexpr double c11 = -1/(((double)2)*3*4*5*6*7*8*9*10*11);
 // sin(x) = x + c3*x^3 + c5*x^5 + c7*x^7 + x9*x^9 + c11*x^11
 
+static constexpr double c2  = -1/(((double)2));
+static constexpr double c4  =  1/(((double)2)*3*4);
+static constexpr double c6  = -1/(((double)2)*3*4*5*6);
+static constexpr double c8  =  1/(((double)2)*3*4*5*6*7*8);
+static constexpr double c10 = -1/(((double)2)*3*4*5*6*7*8*9*10);
+// sin(x+pi/2) = cosx = 1 + c2*x^2 + c4*x^4 + c6*x^6 + x8*x^8 + c10*x^10
+
+// Computing 4 at a time, because for the vectorized 
+// cases we should be able to do 4 simultaneously.
 void sin4_reference(double* sinx, const double* x) {
   for (long i = 0; i < 4; i++) sinx[i] = sin(x[i]);
 }
@@ -44,6 +53,57 @@ void sin4_taylor(double* sinx, const double* x) {
     s += x9  * c9;
     s += x11 * c11;
     sinx[i] = s;
+  }
+}
+
+
+void sin4_taylor_extended(double* sinx, const double* x) {
+  // If outside interval, compute cosine taylor series
+  for (int i = 0; i < 4; i++) {
+
+    int n = floor((x[i]+M_PI/4)/(M_PI/2));
+    double xm = x[i] - n*M_PI/2;
+    // If n is odd (x in [pi/4,3pi/4], [5pi/4, 7pi/4]...) use cosine
+    if (abs(n)%2==1) { 
+        double x1  = xm;
+        double x2  = x1 * x1;
+        double x4  = x2 * x2;
+        double x6  = x4 * x2;
+        double x8  = x6 * x2;
+        double x10 = x8 * x2;
+
+        double s = 1;
+        s += x2  * c2;
+        s += x4  * c4;
+        s += x6  * c6;
+        s += x8  * c8;
+        s += x10 * c10;
+        sinx[i] = s;
+    }
+    // If n is even (x in [-pi/4,pi/4], [3pi/4, 5pi/4]...) use sin
+    else {
+        double x1  = xm;
+        double x2  = x1 * x1;
+        double x3  = x1 * x2;
+        double x5  = x3 * x2;
+        double x7  = x5 * x2;
+        double x9  = x7 * x2;
+        double x11 = x9 * x2;
+
+        double s = x1;
+        s += x3  * c3;
+        s += x5  * c5;
+        s += x7  * c7;
+        s += x9  * c9;
+        s += x11 * c11;
+        sinx[i] = s;
+    }
+    // If n is a multiple of 2 or (x in [3pi/4, 5pi/4] 
+    // or [5pi/4, 7pi/4]) use the negative
+    int nmod = (n % 4 + 4) % 4;
+    if (nmod==2 || nmod==3){
+        sinx[i] *= -1;
+    }
   }
 }
 
@@ -107,20 +167,33 @@ double err(double* x, double* y, long N) {
 
 int main() {
   Timer tt;
-  long N = 1000000;
+  //long N = 1000000;
+  long N = 10000;
   double* x = (double*) aligned_malloc(N*sizeof(double));
+  double* xext = (double*) aligned_malloc(N*sizeof(double));
   double* sinx_ref = (double*) aligned_malloc(N*sizeof(double));
   double* sinx_taylor = (double*) aligned_malloc(N*sizeof(double));
   double* sinx_intrin = (double*) aligned_malloc(N*sizeof(double));
   double* sinx_vector = (double*) aligned_malloc(N*sizeof(double));
+
+  double* sinx_taylor_extended = (double*) aligned_malloc(N*sizeof(double));
+  double* sinx_intrin_extended = (double*) aligned_malloc(N*sizeof(double));
   for (long i = 0; i < N; i++) {
-    x[i] = (drand48()-0.5) * M_PI/2; // [-pi/4,pi/4]
+    //x[i] = (drand48()-0.5) * M_PI/2; // [-pi/4,pi/4]
+    x[i] = (drand48()-0.5) * 4*M_PI; // [-pi,pi]
+    //x[i] = (drand48()-4) * M_PI/4; //[-4pi/4, -3pi/4]
     sinx_ref[i] = 0;
     sinx_taylor[i] = 0;
     sinx_intrin[i] = 0;
     sinx_vector[i] = 0;
+
+    // for extended, use interval [-pi,pi]
+    //x[i] = (drand48()-0.5) * 2*M_PI;
+    sinx_taylor_extended[i] = 0;
   }
 
+  // This is giving the memory address for index i of the length N
+  // array, jumping by 4 to leave room for the 4 solutions for the 4 xs.
   tt.tic();
   for (long rep = 0; rep < 1000; rep++) {
     for (long i = 0; i < N; i+=4) {
@@ -153,9 +226,20 @@ int main() {
   }
   printf("Vector time:    %6.4f      Error: %e\n", tt.toc(), err(sinx_ref, sinx_vector, N));
 
+  tt.tic();
+  for (long rep = 0; rep < 1000; rep++) {
+    for (long i = 0; i < N; i+=4) {
+      //sin4_taylor_extended(sinx_taylor_extended+i, xext+i);
+      sin4_taylor_extended(sinx_taylor_extended+i, x+i);
+    }
+  }
+  printf("Taylor time:    %6.4f      Error: %e\n", tt.toc(), err(sinx_ref, sinx_taylor_extended, N));
+
   aligned_free(x);
+  aligned_free(xext);
   aligned_free(sinx_ref);
   aligned_free(sinx_taylor);
+  aligned_free(sinx_taylor_extended);
   aligned_free(sinx_intrin);
   aligned_free(sinx_vector);
 }
