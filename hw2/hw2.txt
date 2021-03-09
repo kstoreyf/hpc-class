@@ -155,9 +155,10 @@ The peak flop rate for my machine can be computed from the clock rate,
 (this is an estimate based on typical computations/cycle; my machine
 does not report this). This gives a max theoretical flop rate of 
 11.6Gflop/s. My optimal blocked version achieves flop rates up to 
-12.5Gflop/s, slightly above the peak rate. This may be do to slight 
-inaccuracies in our calculation, but it shows that we do end up utilizing
-the potential flop rate with our blocked MM method.
+12.5Gflop/s, slightly above the peak rate. We should not be able to achieve
+this high a flop rate compared to peak, so it is unclear what is going on.
+The Greene nodes may use Turbo which gives 3.90GHz, which makes a bit more 
+sense. Other Greene fancy speedups may help explain this difference..
 
 
 3. Approximating Special Functions Using Taylor Series & Vectorization
@@ -166,3 +167,25 @@ I have improved the function sin4_intrin() for AVX intrinsics to an
 accuracy of about 12 digits, by adding terms to the Taylor series up
 to x^11, using the AVX summation and multiplication functions
 _mm256_mul_pd() and _mm256_add_pd().
+
+Extra credit: I have implemented an approximation for sinx of any x,
+not just in the interval [-pi/4, pi/4]. To do this I use Euler's formula.
+For an angle t+pi/2, we have e^(i*(t+pi/2)) = ie^(it). Expanding out both
+sides, we get cos(t+pi/2) + isin(t+pi/2) = icost - sint. Equating the complex
+parts, we obtain sin(t+pi/2) = cost. Thus to evaluate sinx for x that is from
+pi/4 to 3pi/4, we can subtract pi/2 and evaluate cost. Similarly, we find that
+for x from -3pi/4 to -pi/4, we can use sin(t-pi/2) = -cost, and for x from
+3pi/4 to pi and -pi to -3pi/4, we can use sin(t+pi)=-sin(t). For values 
+outside the range -pi to pi, we can normalize to this range before evaluating. 
+
+I have implemented this in sin4_taylor_extended, and for all x it achieves a 
+very small error compared to the reference solution. I use a Taylor approximation
+for cosx up to x^10 order. This does require some overhead to figure out which
+case we are in. My implementation is very inefficient and takes a long time
+(10x reference solution), but it works.
+
+I also implement this method in sinx_intrin_extended. I achieve a similarly small 
+error. Here we can't decide for each individual x which case to compute because
+of the blocking of 4 xs for vectorization, so for each 4 I compute both the sinx
+and cosx, and then afterwards decide which to save to the results based on the value
+of x. Again I am sure there is a much more efficient way, but this does work.
