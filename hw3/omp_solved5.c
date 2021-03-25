@@ -45,12 +45,17 @@ omp_init_lock(&lockb);
       omp_set_lock(&locka);
       for (i=0; i<N; i++)
         a[i] = i * DELTA;
+      // BUG/FIX: We have to unset the lock here after we are 
+      // done writing to a, so the section below can 
+      // write to a in its second loop. Otherwise we 
+      // hit a deadlock.
+      omp_unset_lock(&locka);
       omp_set_lock(&lockb);
       printf("Thread %d adding a[] to b[]\n",tid);
       for (i=0; i<N; i++)
         b[i] += a[i];
+      //omp_unset_lock(&locka);
       omp_unset_lock(&lockb);
-      omp_unset_lock(&locka);
       }
 
     #pragma omp section
@@ -59,15 +64,22 @@ omp_init_lock(&lockb);
       omp_set_lock(&lockb);
       for (i=0; i<N; i++)
         b[i] = i * PI;
+      // BUG/FIX: Similiar to above, we have to unset b after
+      // we're done writing to it so the section above
+      // can continue.
+      omp_unset_lock(&lockb);
       omp_set_lock(&locka);
       printf("Thread %d adding b[] to a[]\n",tid);
       for (i=0; i<N; i++)
         a[i] += b[i];
       omp_unset_lock(&locka);
-      omp_unset_lock(&lockb);
+      //omp_unset_lock(&lockb);
       }
     }  /* end of sections */
   }  /* end of parallel region */
 
+  // We should also destroy the locks; good practice to clean up.
+  omp_destroy_lock(&locka);
+  omp_destroy_lock(&lockb);
 }
 
