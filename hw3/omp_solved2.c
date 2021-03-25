@@ -12,11 +12,14 @@
 int main (int argc, char *argv[]) 
 {
 int nthreads, i, tid;
-//float total;
+// BUG/FIX: A float didn't give enough precision for
+// this problem, so we changed it to a double.
 double total;
 
 /*** Spawn parallel region ***/
-#pragma omp parallel 
+// BUG/FIX: We had to make tid private, so that each
+// thread can separately have its own tid.
+#pragma omp parallel private(tid)
   {
   /* Obtain thread number */
   tid = omp_get_thread_num();
