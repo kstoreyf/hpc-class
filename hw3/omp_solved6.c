@@ -12,11 +12,17 @@
 #define VECLEN 100
 
 float a[VECLEN], b[VECLEN];
+//BUG/FIX: We need to make sum a global variable, so that
+//it can be shared in the dotprod function, and then 
+//printed in main, rather than declaring it separately in 
+//each function.
+float sum;
 
-float dotprod ()
+// We also need to make the return type here void, because
+// we don't return anything.
+void dotprod ()
 {
 int i,tid;
-float sum;
 
 tid = omp_get_thread_num();
 #pragma omp for reduction(+:sum)
@@ -30,7 +36,6 @@ tid = omp_get_thread_num();
 
 int main (int argc, char *argv[]) {
 int i;
-float sum;
 
 for (i=0; i < VECLEN; i++)
   a[i] = b[i] = 1.0 * i;
