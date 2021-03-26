@@ -10,7 +10,7 @@
 
 void jacobi_serial(double* u, double* f, double*A, long N, int maxiter){
   // assume lexicographic ordering, i row-major order; access [i,j] with [i*N+j)
-  double hh, resid, residual_norm, residual_thresh;
+  double hh, diff_norm, diff_thresh;
   const long N2 = N+2;
   double* u_prev = (double*) malloc(N2*N2 * sizeof(double));
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
@@ -33,45 +33,21 @@ void jacobi_serial(double* u, double* f, double*A, long N, int maxiter){
       //printf("\n");
     }
 
-    double diffnorm = 0;
+    diff_norm = 0;
     for (int i=1; i<N+1; i++) {
       for (int j=1; j<N+1; j++) {
-        diffnorm += (u[i*N2+j] - u_prev[i*N2+j])*(u[i*N2+j] - u_prev[i*N2+j]);
+        diff_norm += (u[i*N2+j] - u_prev[i*N2+j])*(u[i*N2+j] - u_prev[i*N2+j]);
       }
     }
-    diffnorm = sqrt(diffnorm);
-    printf("diffnorm: %f\n", diffnorm);
+    diff_norm = sqrt(diff_norm);
 
-    double* f_approx = (double*) malloc(N2*N2 * sizeof(double));
-    for (long i = 0; i < N2*N2; i++) f_approx[i] = 0;
-    residual_norm = 0;
-    for (int i=1; i<N+1; i++) {
-      for (int j=1; j<N+1; j++) {
-        // Only these elements of Au are nonzero
-        // this is for a column of a, and row of u (swap the indices)
-        if (i==j || i==j-1 || i==j+1){
-            //printf("i=%d, j=%d\n", i, j);
-            f_approx[i*N2+j] += A[i*N2+j] * u[j*N2+i];
-        }
-
-        //if (i>0) Au_i += A[i*N+(i-1)] * u[(i-1)*N+i]; // for a row i, the j values are above & below
-        //if (i<N-1) Au_i += A[i*N+(i+1)] * u[(i+1)*N+i];
-      }
+    // define threshhold as decreasing the diffnorm by 10^6 times the initial
+    if (k==0){
+      diff_thresh = 1e-6 * diff_norm;
     }
-    for (int i=1; i<N+1; i++) {
-      for (int j=1; j<N+1; j++) {
-        resid = f_approx[i*N2+j] - f[i*N2+j];
-        residual_norm += resid*resid;
-      }
-    }
-    residual_norm = sqrt(residual_norm); // take square root
-    // define threshhold as decreasing the residual by 10^6 times the initial
-    if (k==0) {
-      residual_thresh = 1e-6 * residual_norm;
-    }
-    printf("k = %d, residual_norm = %e (r_norm/r_thresh=%e)\n", k, residual_norm, residual_norm/(1e6*residual_thresh));
-    if (residual_norm < residual_thresh) {
-      printf("Threshold reached after %d iterations! Residual: %f\n", k, residual_norm);
+    printf("k=%d, diff_norm=%e (diff_thresh=%e)\n", k, diff_norm, diff_thresh);
+    if (diff_norm < diff_thresh) {
+      printf("Threshold reached after %d iterations! diff_norm=%e\n", k, diff_norm);
       break;
     }
   }
@@ -84,7 +60,7 @@ int main(int argc, char** argv) {
   
   const long N = 7;
   const long N2 = N+2;
-  int maxiter = 100;
+  int maxiter = 5000;
 
   // Initialize f with all 1s; pad edges
   double* f = (double*) malloc(N2*N2 * sizeof(double));
