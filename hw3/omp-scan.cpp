@@ -21,19 +21,21 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
   //  printf("A[%ld] = %ld\n", i, A[i]);
   //}
   int tid, p;
+  long chunksize;
+  p = omp_get_max_threads();
+  printf("Num threads: %d\n", p);
+  chunksize = ceil((double)n/(double)p); // will have to deal with potential for last chunk to be smaller
   //prefix_sum[0] = 0; //shouldnt this be A[0]?? also related, in above, never get to A[n-1]
-  #pragma omp parallel private(tid) shared(prefix_sum)
+  #pragma omp parallel private(tid) shared(prefix_sum, A, n, chunksize)
   {
   tid = omp_get_thread_num();
-  p =  omp_get_num_threads();
-  long chunksize, start, stop;
-  chunksize = ceil((double)n/(double)p); // will have to deal with potential for last chunk to be smaller
+  //p =  omp_get_num_threads();
+  long start, stop;
   start = tid*chunksize;
   stop = std::min(start + chunksize, n); //in case n not divisible by p. used ceil, so min
   //printf("n %ld, p %d\n", n, p);
   //printf("chunksize=%ld, start=%ld, stop=%ld\n", chunksize, start, stop);
   if (tid==0){
-      printf("Num threads: %d\n", p);
       prefix_sum[0] = 0;
   }
   else{
@@ -48,31 +50,28 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
       //printf("p[%ld] = %ld\n", i, prefix_sum[i]);
   }
   printf("Thread %d computed its chunk\n", tid);
-  #pragma omp barrier
-  //} //end pragma region
+  //#pragma omp barrier
+  } //end pragma region
   // all threads have finished their chunk
    
   //now correct for the constant 
-  // doing this because we still need chunksize and p
-  if (tid==0){
-      printf("Adjusting for constant offset\n");
-      int t;
-      long const_index;
-      for (long i=0; i<n; i++){
-          // sum over the contants from chunks below yours
-          // figure out what chunk t this part was in
-          t = floor(i/chunksize); //should be equiv to orig tid
-          // the constant to add is the value before "stop";
-          // only need to add one bc we will have already
-          // fixed all the earlier values
-          if (t>0){
-            const_index = std::min(t*chunksize, n)-1;
-            prefix_sum[i] += prefix_sum[const_index];
-          }
-          //printf("pfinal[%ld] = %ld\n", i, prefix_sum[i]);
+  printf("Adjusting for constant offset\n");
+  int t;
+  long const_index;
+  for (long i=0; i<n; i++){
+      // sum over the contants from chunks below yours
+      // figure out what chunk t this part was in
+      t = floor(i/chunksize); //should be equiv to orig tid
+      // the constant to add is the value before "stop";
+      // only need to add one bc we will have already
+      // fixed all the earlier values
+      if (t>0){
+        const_index = std::min(t*chunksize, n)-1;
+        prefix_sum[i] += prefix_sum[const_index];
       }
+      //printf("pfinal[%ld] = %ld\n", i, prefix_sum[i]);
   }
-  } //end pragma region
+  //} //end pragma region
   printf("Done!\n");
 
 }
