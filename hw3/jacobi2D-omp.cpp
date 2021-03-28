@@ -43,7 +43,7 @@ void jacobi_serial(double* u, double* f, long N, int maxiter){
       printf("Threshold reached after %d iterations! diff_norm=%e\n", k, diff_norm);
       break;
     }
-    if (k==maxiter-1) printf("Maxiter reached (%d iterations)! diff_norm=%e\n", k, diff_norm);
+    if (k==maxiter-1) printf("Maxiter reached (%d iterations)! diff_norm=%e\n", maxiter, diff_norm);
   }
 
   free(u_prev);
@@ -96,7 +96,7 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
       printf("Threshold reached after %d iterations! diff_norm=%e\n", k, diff_norm);
       break;
     }
-    if (k==maxiter-1) printf("Maxiter reached (%d iterations)! diff_norm=%e\n", k, diff_norm);
+    if (k==maxiter-1) printf("Maxiter reached (%d iterations)! diff_norm=%e\n", maxiter, diff_norm);
   }
 
   free(u_prev);

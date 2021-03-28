@@ -17,8 +17,8 @@ void gauss_seidel(double* u, double* f, long N, int maxiter){
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
 
   for (int k=0; k<maxiter; k++) {
-    // copy elements of u array into u_prev
-    // exclude padding
+    // perform update in-place on u; exclude padding
+    // compute the residual difference as we go
     diff_norm = 0;
     for (long i=1; i<N+1; i++) {
       for (long j=1; j<N+1; j++) {
@@ -51,7 +51,7 @@ void gauss_seidel_colored(double* u, double* f, long N, int maxiter){
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
 
   for (int k=0; k<maxiter; k++) {
-    // exclude padding
+    // use the color method to update u; exclude padding
     diff_norm = 0;
     //update all red points (i+j even)
     for (long i=1; i<N+1; i++) {
@@ -101,7 +101,7 @@ void gauss_seidel_colored_parallel(double* u, double* f, long N, int maxiter){
   #endif
 
   for (int k=0; k<maxiter; k++) {
-    // exclude padding
+    // Parallelize the color algorithm update method; exclude padding
     diff_norm = 0;
     //update all red points (i+j even)
     #ifdef _OPENMP
