@@ -148,7 +148,7 @@ void gauss_seidel_colored_parallel(double* u, double* f, long N, int maxiter){
 
 int main(int argc, char** argv) {
   
-  const long N = 512;
+  const long N = 1000;
   const long N2 = N+2;
   int maxiter = 1000;
 

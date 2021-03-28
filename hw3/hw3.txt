@@ -12,40 +12,73 @@ regions, so in the first region, loop 1 spends sum_n/2^(n-1)[i] - sum_i^(n/2-1)[
 n^2/4 ms. The same goes for loop 2 in the second region, for a total of n^2/2 ms of 
 waiting. Here we have assumed that n is odd, but it would be close to this for even n,
 especially as it gets large.
+
 b) If we instead use schedule(static,1), the threads will no longer take the first vs
 second half, but every other value of i. This will even out the time, as the time spent
 in f scales linearly with i. If n is odd, the timing should be exactly the same; if it
 is even there will be slightly differences.
+
 c) If we use schedule(dynamic,1), the threads will be given values of i in no particular
 order. This will cause slight unevenness between the threads, but for large N, the times
 should end up being pretty even. So no, the timing will not improve, but it will only
 worsen slightly.
+
 d) We could add "nowait" to the end of the first "#pragma omp for schedule(static)"
 clause, so that the threads would not wait for each other after the first loop. Because
 their workload switches in the second loop, this would overall even out the time both
 spend performing the work in function f.
 
+
 2. Finding OpenMP bugs
 The solutions to these bugs are contained in the files omp_solved{2,3,4,5,6}.c.
+
 
 3. Parallel Scan in OpenMP
 I have parallelized the scan operation in omp-scan.cpp. I am running it on an Intel(R) 
 Xeon(R) Platinum 8268 CPU @ 2.90GHz machine with 24 CPU cores. The timings are as follows:
-num_threads     time_serial     time_parallel
-1               0.395430s       0.464113s
-2               0.398467s       0.251680s
-4               0.396774s       0.133399s
-8               0.405978s       0.077052s
-16              0.396201s       0.056059s
-24              0.393506s       0.070141s
-32              0.400545s       0.068314s
-64              0.419367s       0.057954s
+
+n_threads     time_serial     time_parallel
+1             0.395430s       0.464113s
+2             0.398467s       0.251680s
+4             0.396774s       0.133399s
+8             0.405978s       0.077052s
+16            0.396201s       0.056059s
+24            0.393506s       0.070141s
+32            0.400545s       0.068314s
+64            0.419367s       0.057954s
+
 We can see that we get a speedup of not quite a factor of the number of threads, but still
 substantial. The speedup in parallel plateaus once we hit ~16 threads. This is a bit odd 
 as we have 24 cores, but perhaps the overhead of thread splitting gets high with so
 many threads.
 
+
 4. OpenMP version of 2D Jacobi/Gauss-Seidel smoothing
 I have implemented serial and parallel versions of these algorithms. For f(x,y)=1 and 
-a maximum of 1000 iterations, we get the following timings for Jacobi:
+a maximum of 1000 iterations, we get the following timings for Jacobi (note that N=10 converges after a few hundred iters):
 
+N    n_threads  t_jacobi_ser   t_jacobi_par   t_gs_ser   t_gs_par
+10   4          0.000113s      0.001261s      0.000103s  0.000754s
+100  4          0.015798s      0.007725s      0.057189s  0.008230s
+1000 4          2.217761s      0.522871s      6.027021s  0.433017s
+10   8          0.000095s      0.001895s      0.000060s  0.001136s
+100  8          0.015773s      0.007497s      0.057202s  0.007988s
+1000 8          2.206619s      0.271154s      6.021739s  0.225288s
+10   16         0.000097s      0.002960s      0.000047s  0.001923s
+100  16         0.015775s      0.009287s      0.057207s  0.010770s
+1000 16         2.213305s      0.135518s      6.022402s  0.111380s
+10   32         0.000097s      0.052429s      0.000049s  0.026982s
+100  32         0.015750s      0.172288s      0.057199s  0.169707s
+1000 32         2.202608s      0.467726s      6.021174s  0.339802s
+
+We can see that the parallelization does not help for the smaller 
+N, as the overhead for parallelization dominates. However when
+we get to N=1000, we see a significant speedup for parallel. For
+Jacobi we are getting about a factor of the number of threads
+up until n_threads=16, which is the maximum. It plateaus past 24
+threads because that is the number of cores. For G-S, get a 
+speedup that is even larger than the number of threads for N=1000;
+somehow our colored algorithm is more efficient than the regular
+algorithm, even in serial (this is strange though and may indicate
+a bug). Overall, we are able to achieve impressive times with 
+parallelization.

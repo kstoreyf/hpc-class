@@ -105,7 +105,7 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
 
 int main(int argc, char** argv) {
   
-  const long N = 10;
+  const long N = 1000;
   const long N2 = N+2;
   int maxiter = 1000;
 
