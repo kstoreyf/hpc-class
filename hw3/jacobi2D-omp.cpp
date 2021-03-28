@@ -5,7 +5,9 @@
 
 #include <stdio.h>
 #include <cmath>
-#include <omp.h>
+#ifdef OPENMP
+    #include <omp.h>
+#endif
 
 
 void jacobi_serial(double* u, double* f, long N, int maxiter){
@@ -36,7 +38,7 @@ void jacobi_serial(double* u, double* f, long N, int maxiter){
     if (k==0){
       diff_thresh = 1e-6 * diff_norm;
     }
-    printf("k=%d, diff_norm=%e (diff_thresh=%e)\n", k, diff_norm, diff_thresh);
+    //printf("k=%d, diff_norm=%e (diff_thresh=%e)\n", k, diff_norm, diff_thresh);
     if (diff_norm < diff_thresh) {
       printf("Threshold reached after %d iterations! diff_norm=%e\n", k, diff_norm);
       break;
@@ -54,10 +56,15 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
   const long N2 = N+2;
   double* u_prev = (double*) malloc(N2*N2 * sizeof(double));
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
-
+  #ifdef OPENMP
+  printf("Num threads: %d\n", omp_get_max_threads());
+  #endif
   // loop over iterations
   for (int k=0; k<maxiter; k++) {
     // copy elements of u array into u_prev
+    #ifdef OPENMP
+    #pragma omp parallel for schedule(static) shared(u, u_prev)
+    #endif
     for (long ij = 0; ij < N2*N2; ij++) u_prev[ij] = u[ij];
     // exclude padding
     diff_norm = 0;
@@ -68,7 +75,9 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
     // threads are doing. 
     // We must make sure to perform a reduction of diff_norm to 
     // keep track of convergence.
-    #pragma omp parallel for schedule(static) reduction(+:diff_norm)
+    #ifdef OPENMP
+    #pragma omp parallel for schedule(static) reduction(+:diff_norm) shared(u, u_prev)
+    #endif
     for (long i=1; i<N+1; i++) {
       for (long j=1; j<N+1; j++) {
         // overwrite u with the kth iteration, based on the previous u
@@ -96,7 +105,7 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
 
 int main(int argc, char** argv) {
   
-  const long N = 100;
+  const long N = 1000;
   const long N2 = N+2;
   int maxiter = 1000;
 
@@ -111,14 +120,22 @@ int main(int argc, char** argv) {
   for (long ij = 0; ij < N2*N2; ij++) u_par[ij] = 0;
 
   // Iteratively approximate solution
+  #ifdef OPENMP
   double tt = omp_get_wtime();
+  #endif
   jacobi_serial(u, f, N, maxiter);
+  #ifdef OPENMP
   printf("jacobi serial = %fs\n", omp_get_wtime() - tt);
+  #endif
   
   // Parallel solution
+  #ifdef OPENMP
   tt = omp_get_wtime();
+  #endif
   jacobi_parallel(u_par, f, N, maxiter);
+  #ifdef OPENMP
   printf("jacobi parallel = %fs\n", omp_get_wtime() - tt);
+  #endif
    
   free(u);
   free(u_par);

@@ -5,7 +5,9 @@
 
 #include <stdio.h>
 #include <cmath>
+#ifdef OPENMP
 #include <omp.h>
+#endif
 
 
 void gauss_seidel(double* u, double* f, long N, int maxiter){
@@ -94,13 +96,17 @@ void gauss_seidel_colored_parallel(double* u, double* f, long N, int maxiter){
   long jstart, istart;
   const long N2 = N+2;
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
+  #ifdef OPENMP
   printf("Num threads: %d\n", omp_get_max_threads());
+  #endif
 
   for (int k=0; k<maxiter; k++) {
     // exclude padding
     diff_norm = 0;
     //update all red points (i+j even)
+    #ifdef OPENMP
     #pragma omp parallel for schedule(static) reduction(+:diff_norm) shared(u) private(u_prev)
+    #endif
     for (long i=1; i<N+1; i++) {
       if (i%2==1) jstart = 1;
       else jstart = 2;
@@ -111,7 +117,9 @@ void gauss_seidel_colored_parallel(double* u, double* f, long N, int maxiter){
       }
     }
     //update all black points (i+j odd)
+    #ifdef OPENMP
     #pragma omp parallel for schedule(static) reduction(+:diff_norm) shared(u) private(u_prev)
+    #endif
     for (long i=1; i<N+1; i++) {
       if (i%2==1) jstart = 2;
       else jstart = 1;
@@ -159,17 +167,29 @@ int main(int argc, char** argv) {
   }
 
   // Iteratively approximate solution
+  #ifdef OPENMP
   double tt = omp_get_wtime();
+  #endif
   gauss_seidel(u, f, N, maxiter);
+  #ifdef OPENMP
   printf("gauss-seidel (serial) = %fs\n", omp_get_wtime() - tt);
+  #endif
   
+  #ifdef OPENMP 
   tt = omp_get_wtime();
+  #endif
   gauss_seidel_colored(u_col, f, N, maxiter);
+  #ifdef OPENMP
   printf("gauss-seidel colored (serial) = %fs\n", omp_get_wtime() - tt);
+  #endif
 
+  #ifdef OPENMP
   tt = omp_get_wtime();
+  #endif
   gauss_seidel_colored_parallel(u_par, f, N, maxiter);
+  #ifdef OPENMP
   printf("gauss-seidel colored (parallel) = %fs\n", omp_get_wtime() - tt);
+  #endif
    
   free(u);
   free(u_col);
