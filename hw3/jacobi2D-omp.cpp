@@ -15,32 +15,21 @@ void jacobi_serial(double* u, double* f, long N, int maxiter){
   double* u_prev = (double*) malloc(N2*N2 * sizeof(double));
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
 
+  // Loop over iterations
   for (int k=0; k<maxiter; k++) {
     // copy elements of u array into u_prev
     for (long ij = 0; ij < N2*N2; ij++) u_prev[ij] = u[ij];
     // exclude padding
     diff_norm = 0;
+
+    // update u values based on previous u, and compute 
+    // the difference to check convergence
     for (long i=1; i<N+1; i++) {
       for (long j=1; j<N+1; j++) {
-        // overwrite u with the kth iteration, based on the previous u
-        //printf("f %f\n", f[i*N2+j]);
-        //printf("uprev %f\n", u_prev[(i-1)*N2+j]);
-        //printf("%f\n", hh*f[i*N2+j]);
         u[i*N2+j] = 0.25*(hh*f[i*N2+j] + u_prev[(i-1)*N2 + j] + u_prev[i*N2+(j-1)] + u_prev[(i+1)*N2+j] + u_prev[i*N2+(j+1)]);
         diff_norm += (u[i*N2+j] - u_prev[i*N2+j])*(u[i*N2+j] - u_prev[i*N2+j]);
-        //printf("u_prev[00]=%f, u[00]=%f\n", u_prev[i*N+j], u[i*N+j]);
-        //printf("%f ", u[i*N2+j]);
-        //printf("\n");
       }
-      //printf("\n");
     }
-
-    //diff_norm = 0;
-    //for (long i=1; i<N+1; i++) {
-    //  for (long j=1; j<N+1; j++) {
-    //    diff_norm += (u[i*N2+j] - u_prev[i*N2+j])*(u[i*N2+j] - u_prev[i*N2+j]);
-    //  }
-    //}
     diff_norm = sqrt(diff_norm);
 
     // define threshhold as decreasing the diffnorm by 10^6 times the initial
@@ -63,38 +52,30 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
   // assume lexicographic ordering, i row-major order; access [i,j] with [i*N+j)
   double hh, diff_norm, diff_thresh;
   const long N2 = N+2;
-  double* u_prev_par = (double*) malloc(N2*N2 * sizeof(double));
+  double* u_prev = (double*) malloc(N2*N2 * sizeof(double));
   hh = 1.0/(double)((N+1)*(N+1)); //h times h
 
+  // loop over iterations
   for (int k=0; k<maxiter; k++) {
     // copy elements of u array into u_prev
-    for (long ij = 0; ij < N2*N2; ij++) u_prev_par[ij] = u[ij];
+    for (long ij = 0; ij < N2*N2; ij++) u_prev[ij] = u[ij];
     // exclude padding
     diff_norm = 0;
+
+    // We parallelize this with a basic scheduled for loop, so that 
+    // each thread will take a chunk of rows; this is fine because 
+    // the only dependence is on the previous u, not what the other
+    // threads are doing. 
+    // We must make sure to perform a reduction of diff_norm to 
+    // keep track of convergence.
     #pragma omp parallel for schedule(static) reduction(+:diff_norm)
     for (long i=1; i<N+1; i++) {
       for (long j=1; j<N+1; j++) {
         // overwrite u with the kth iteration, based on the previous u
-        //printf("f %f\n", f[i*N2+j]);
-        //printf("uprev %f\n", u_prev[(i-1)*N2+j]);
-        //printf("%f\n", hh*f[i*N2+j]);
-        //printf("Thread %d computing u[%ld,%ld]\n", omp_get_thread_num(), i, j);
-        u[i*N2+j] = 0.25*(hh*f[i*N2+j] + u_prev_par[(i-1)*N2 + j] + u_prev_par[i*N2+(j-1)] + u_prev_par[(i+1)*N2+j] + u_prev_par[i*N2+(j+1)]);
-        diff_norm += (u[i*N2+j] - u_prev_par[i*N2+j])*(u[i*N2+j] - u_prev_par[i*N2+j]);
-        //printf("u_prev[00]=%f, u[00]=%f\n", u_prev[i*N+j], u[i*N+j]);
-        //printf("%f ", u[i*N2+j]);
-        //printf("\n");
+        u[i*N2+j] = 0.25*(hh*f[i*N2+j] + u_prev[(i-1)*N2 + j] + u_prev[i*N2+(j-1)] + u_prev[(i+1)*N2+j] + u_prev[i*N2+(j+1)]);
+        diff_norm += (u[i*N2+j] - u_prev[i*N2+j])*(u[i*N2+j] - u_prev[i*N2+j]);
       }
-      //printf("\n");
     }
-
-    //diff_norm = 0;
-    //#pragma omp parallel for reduction(+:diff_norm)
-    //for (long i=1; i<N+1; i++) {
-    //  for (long j=1; j<N+1; j++) {
-    //    diff_norm += (u[i*N2+j] - u_prev_par[i*N2+j])*(u[i*N2+j] - u_prev_par[i*N2+j]);
-    //  }
-    //}
     diff_norm = sqrt(diff_norm);
 
     // define threshhold as decreasing the diffnorm by 10^6 times the initial
@@ -109,7 +90,7 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
     if (k==maxiter-1) printf("Maxiter reached (%d iterations)! diff_norm=%e\n", k, diff_norm);
   }
 
-  free(u_prev_par);
+  free(u_prev);
 }
 
 
@@ -134,6 +115,7 @@ int main(int argc, char** argv) {
   jacobi_serial(u, f, N, maxiter);
   printf("jacobi serial = %fs\n", omp_get_wtime() - tt);
   
+  // Parallel solution
   tt = omp_get_wtime();
   jacobi_parallel(u_par, f, N, maxiter);
   printf("jacobi parallel = %fs\n", omp_get_wtime() - tt);

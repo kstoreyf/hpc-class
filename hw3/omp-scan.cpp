@@ -27,7 +27,7 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
   long offsets[p];
   offsets[0] = 0;
 
-  // Have each thread compute it's part of prefix_sum
+  // Have each thread compute its part of prefix_sum
   #pragma omp parallel private(tid) shared(prefix_sum, A, n, chunksize)
   {
   tid = omp_get_thread_num();
