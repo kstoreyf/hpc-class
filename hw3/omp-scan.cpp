@@ -25,6 +25,8 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
   p = omp_get_max_threads();
   printf("Num threads: %d\n", p);
   chunksize = ceil((double)n/(double)p); // will have to deal with potential for last chunk to be smaller
+  long offsets[p];
+  offsets[0] = 0;
   //prefix_sum[0] = 0; //shouldnt this be A[0]?? also related, in above, never get to A[n-1]
   #pragma omp parallel private(tid) shared(prefix_sum, A, n, chunksize)
   {
@@ -41,10 +43,8 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
   else{
       prefix_sum[start] = A[start-1];
   }
-  printf("Set up chunks\n");
-  // each will have its own prefix sum
-  
-  //prefix_sum[start] = A[start]; // should be this if serial is how i think it should be!
+  //printf("Set up chunks\n");
+  //printf("nprechunk %ld", n); 
   for (long i=start+1; i<stop; i++){
       prefix_sum[i] = prefix_sum[i-1] + A[i-1];
       //printf("p[%ld] = %ld\n", i, prefix_sum[i]);
@@ -53,24 +53,51 @@ void scan_omp(long* prefix_sum, const long* A, long n) {
   //#pragma omp barrier
   } //end pragma region
   // all threads have finished their chunk
-   
+  
+  //long offsets[p]; 
   //now correct for the constant 
   printf("Adjusting for constant offset\n");
   int t;
   long const_index;
-  for (long i=0; i<n; i++){
+  //offsets[0] = 0;
+  for (int t=1; t<p; t++){
+      const_index = std::min(t*chunksize, n)-1;
+      //printf("const_index = %ld\n", const_index);
+      offsets[t] = offsets[t-1] + prefix_sum[const_index];
+      //printf("offsets[%d] = %ld\n", t, offsets[t]);
+  }
+
+  #pragma omp parallel private(tid) shared(prefix_sum, A, n, chunksize, offsets)
+  {
+  tid = omp_get_thread_num();
+  //p =  omp_get_num_threads();
+  long start, stop;
+  start = tid*chunksize;
+  stop = std::min(start + chunksize, n);
+  //printf("chunksize=%ld, start=%ld, stop=%ld\n", chunksize, start, stop);
+  for (long i=start; i<stop; i++){
+  //    //t = floor(i/chunksize);
+      prefix_sum[i] += offsets[tid];
+      //printf("p[%ld] = %ld\n", i, prefix_sum[i]);
+  }
+  //printf("Thread %d added offset its chunk\n", tid);
+  //#pragma omp barrier
+  } //end pragma region
+    
+
+  //for (long i=0; i<n; i++){
       // sum over the contants from chunks below yours
       // figure out what chunk t this part was in
-      t = floor(i/chunksize); //should be equiv to orig tid
+      //t = floor(i/chunksize); //should be equiv to orig tid
       // the constant to add is the value before "stop";
       // only need to add one bc we will have already
       // fixed all the earlier values
-      if (t>0){
-        const_index = std::min(t*chunksize, n)-1;
-        prefix_sum[i] += prefix_sum[const_index];
-      }
+      //if (t>0){
+        //const_index = std::min(t*chunksize, n)-1;
+        //prefix_sum[i] += prefix_sum[const_index];
+      //}
       //printf("pfinal[%ld] = %ld\n", i, prefix_sum[i]);
-  }
+  //}
   //} //end pragma region
   printf("Done!\n");
 
