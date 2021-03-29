@@ -8,6 +8,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include "utils.h"
 
 
 void jacobi_serial(double* u, double* f, long N, int maxiter){
@@ -105,7 +106,7 @@ void jacobi_parallel(double* u, double* f, long N, int maxiter){
 
 int main(int argc, char** argv) {
   
-  const long N = 1000;
+  const long N = 100;
   const long N2 = N+2;
   int maxiter = 1000;
 
@@ -120,22 +121,34 @@ int main(int argc, char** argv) {
   for (long ij = 0; ij < N2*N2; ij++) u_par[ij] = 0;
 
   // Iteratively approximate solution
+  double tt, time;
+  Timer timer;
   #ifdef _OPENMP
-  double tt = omp_get_wtime();
+  tt = omp_get_wtime();
+  #else
+  timer.tic();
   #endif
   jacobi_serial(u, f, N, maxiter);
   #ifdef _OPENMP
-  printf("jacobi serial = %fs\n", omp_get_wtime() - tt);
+  time = omp_get_wtime() - tt;
+  #else
+  time = timer.toc();
   #endif
+  printf("jacobi serial = %fs\n", time);
   
   // Parallel solution
   #ifdef _OPENMP
   tt = omp_get_wtime();
+  #else
+  timer.tic();
   #endif
   jacobi_parallel(u_par, f, N, maxiter);
   #ifdef _OPENMP
-  printf("jacobi parallel = %fs\n", omp_get_wtime() - tt);
+  time = omp_get_wtime() - tt;
+  #else
+  time = timer.toc();
   #endif
+  printf("jacobi parallel = %fs\n", time);
    
   free(u);
   free(u_par);
