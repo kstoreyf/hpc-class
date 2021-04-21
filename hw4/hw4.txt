@@ -1,0 +1,40 @@
+Homework 4
+High Performance Computing
+Kate Storey-Fisher
+2021-04-21
+
+
+1. Greene Network Test
+
+I use the pingpong.cpp program to test the bandwidth and 
+latency on Greene. I use two CPUs on each of two nodes
+(4 tasks total), and obtain the result:
+
+proc0=0, proc1=3, Rank 2/4 running on cs062.nyu.cluster.
+proc0=0, proc1=3, Rank 0/4 running on cs031.nyu.cluster.
+proc0=0, proc1=3, Rank 1/4 running on cs031.nyu.cluster.
+proc0=0, proc1=3, Rank 3/4 running on cs062.nyu.cluster.
+pingpong latency: 5.351603e-03 ms
+pingpong bandwidth: 1.213463e+01 GB/s
+
+We can see that the procs we are pingponging between,
+0 and 3, are on different nodes (0 on cs031, 3 on cs062).
+We still get quite a small latency; this is because Greene
+has such a good network. We also get reasonably high band-
+width.
+
+I compare this to pingponging between two processes on the 
+same node, 0 and 1. I obtain the results:
+
+proc0=0, proc1=1, Rank 0/4 running on cs031.nyu.cluster.
+proc0=0, proc1=1, Rank 2/4 running on cs062.nyu.cluster.
+proc0=0, proc1=1, Rank 1/4 running on cs031.nyu.cluster.
+proc0=0, proc1=1, Rank 3/4 running on cs062.nyu.cluster.
+pingpong latency: 3.560120e-04 ms
+pingpong bandwidth: 2.444405e+01 GB/s
+
+We can see that the latency is faster by an order of mag-
+nitude, and the bandwidth is larger by a factor of two.
+This makes sense because the information no longer has to 
+go through the network, but rather just be passed within
+the same node.
