@@ -71,10 +71,27 @@ Loop 1: Proc 1 just received msg (msg=6)
 Loop 1: Proc 1 just added to msg, now msg=7. Sending to proc 2
 final message: 12
 expected message: 12
-ring latency: 4.671076e+01 ms
 
 The loop values print out of order, but they are communicating
 around the ring in the correct order, as we can tell from the 
 value of the message (msg).
 
-We now run this with a larger N, N=10000, and find:
+We now run this with a larger N, N=1000000, in order to estimate
+the latency, and find:
+
+final message: 6000000
+expected message: 6000000
+ring latency: 1.738967e-03 ms
+
+This is quite a high latency, confirming our pingpong measurment
+that Greene has a very fast network.
+
+Finally, we send around a large array, of size ~2MB. For 10000 
+loops, we obtain the following latentcy and bandwidth:
+
+Passing array of 500000 ints (2.000000 MB) around network loop
+ring latency: 1.563896e-01 ms
+ring bandwidth: 1.278857e+01 GB/s
+
+The latency is larger, but now we are interested in the bandwidth,
+which is once again quite good on Greene.
