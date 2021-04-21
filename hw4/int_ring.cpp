@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
   if (single_int!=0){
     if (single_int!=1){
       printf("single_int must be 0 or 1!\n");
+      return -1;
     }
   }
 
@@ -106,6 +107,6 @@ int main(int argc, char** argv) {
     if (!rank) printf("ring latency: %e ms\n", tt/(N_loops*p) * 1000);
     if (!rank) printf("ring bandwidth: %e GB/s\n", (sizeof(int)*msg_size*N_loops*p)/tt/1e9);
   }
-
+  return 0;
 }
 
