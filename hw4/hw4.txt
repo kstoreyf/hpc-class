@@ -38,3 +38,43 @@ nitude, and the bandwidth is larger by a factor of two.
 This makes sense because the information no longer has to 
 go through the network, but rather just be passed within
 the same node.
+
+
+2. MPI Ring Communication
+
+I implement a program to send an integer around in a ring,
+across nodes. As an initial test, I run 4 processes on 4
+different nodes, for 2 loops. Each process adds its rank to
+the integer. The output for this is below:
+
+Rank 0/4 running on cs032.nyu.cluster.
+Rank 1/4 running on cs064.nyu.cluster.
+Rank 3/4 running on cs151.nyu.cluster.
+Rank 2/4 running on cs096.nyu.cluster.
+Loop 0/2
+Loop 0: Proc 0 just added to msg, now msg=0. Sending to proc 1
+Loop 0: Proc 1 just received msg (msg=0)
+Loop 0: Proc 1 just added to msg, now msg=1. Sending to proc 2
+Loop 0: Proc 3 just received msg (msg=3)
+Loop 0: Proc 3 just added to msg, now msg=6. Sending to proc 0
+Loop 0: Proc 2 just received msg (msg=1)
+Loop 0: Proc 2 just added to msg, now msg=3. Sending to proc 3
+Loop 0: Proc 0 just received msg (msg=6)
+Loop 1/2
+Loop 1: Proc 0 just added to msg, now msg=6. Sending to proc 1
+Loop 1: Proc 0 just received msg (msg=12)
+Loop 1: Proc 3 just received msg (msg=9)
+Loop 1: Proc 3 just added to msg, now msg=12. Sending to proc 0
+Loop 1: Proc 2 just received msg (msg=7)
+Loop 1: Proc 2 just added to msg, now msg=9. Sending to proc 3
+Loop 1: Proc 1 just received msg (msg=6)
+Loop 1: Proc 1 just added to msg, now msg=7. Sending to proc 2
+final message: 12
+expected message: 12
+ring latency: 4.671076e+01 ms
+
+The loop values print out of order, but they are communicating
+around the ring in the correct order, as we can tell from the 
+value of the message (msg).
+
+We now run this with a larger N, N=10000, and find:
