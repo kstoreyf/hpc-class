@@ -5,7 +5,7 @@
 
 // Scan A array and write result into prefix_sum array;
 // use long data type to avoid overflow
-int scan_seq(long* prefix_sum, const long* A, long n) {
+double scan_seq(long* prefix_sum, const long* A, long n) {
   if (n == 0) return 0;
 
   double tt = MPI_Wtime();
@@ -17,7 +17,7 @@ int scan_seq(long* prefix_sum, const long* A, long n) {
   return tt;
 }
 
-int scan_mpi(long* prefix_sum, const long* A, long n, MPI_Comm comm) {
+double scan_mpi(long* prefix_sum, const long* A, long n, MPI_Comm comm) {
   if (n == 0) return 0;
  
   int rank, p;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &p);
 
-  long N = 1000000;
+  long N = 10000000;
   if (N%p != 0){
       printf("N must be divisible by the number of processors p!\n");
       return -1;
@@ -105,17 +105,15 @@ int main(int argc, char *argv[]) {
     B0 = (long*) malloc(N * sizeof(long));
     B1 = (long*) malloc(N * sizeof(long));
     for (long i = 0; i < N; i++) A[i] = rand();
-    //for (long i = 0; i < N; i++) A[i] = i;
   }
 
-  //double tt = omp_get_wtime();
   double tt;
   if(rank==0){
     tt = scan_seq(B0, A, N);
     //for (long i = 0; i < N; i++) {
     //  printf("B0[%d] = %ld\n", i, B0[i]);
     //}
-    printf("sequential-scan = %fms\n", tt*1000);
+    printf("sequential-scan = %fs\n", tt);
   }
 
   /* get name of host running MPI process */
