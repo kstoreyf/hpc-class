@@ -95,3 +95,83 @@ ring bandwidth: 1.278857e+01 GB/s
 
 The latency is larger, but now we are interested in the bandwidth,
 which is once again quite good on Greene.
+
+
+3. (a) MPI Scan 
+
+I have implemented the scan function (prefix sum) in parallel 
+with MPI. I use the MPI_Scatter function to distribute the 
+initial array to all of the processes, the MPI_Allgather 
+function to collect the offsets for each chunk, and finally 
+the MPI_Gather function to merge the computed chunks back
+into the full result array.
+
+I compare this to a serial scan, just computed by the
+first process. For all the timings below, I achieve zero
+error, meaning my parallel version is computing the answer
+exactly correctly.
+
+The timing of my parallel implementation depends on the number
+of nodes and processes, but it is often slower than the 
+serial version. This may be due to high latency and low 
+bandwidth compared to the computation required. 
+
+For N = 10000000:
+nodes=1, processes=10
+sequential-scan = 0.042699s
+parallel-scan   = 0.082480s
+nodes=1, processes=20
+sequential-scan = 0.042764s
+parallel-scan   = 0.098069s
+nodes=2, processes=10 (5 per node)
+sequential-scan = 0.049287s
+parallel-scan   = 0.245692s
+nodes=2, processes=20 (10 per node)
+sequential-scan = 0.049196s
+parallel-scan   = 0.501006s
+
+We can see that we get worse performance when using 
+more than one node. But even on one node, the time is 
+slower; this may be because MPI requires a lot of 
+overhead, and for more compute-heavy tasks the parallelization
+would greatly decrease the time needed.
+
+
+4. Final project proposal
+
+For my Physics PhD research, I have been working on a new 
+method for estimating the two-point correlation function (a 
+summary statistic of point processes that is important in 
+cosmology). I have implemented it at https://github.com/kstoreyf/suave, 
+as a fork of an existing state-of-the-art package Corrfunc
+(https://github.com/manodeep/Corrfunc). Corrfunc is highly 
+parallelized, with OpenMP and vector intrinsics, using a 
+sophisticated mesh structure. My extension currently utilizes 
+the OpenMP part but is not vectorized. For my final project,
+I plan to add vectorization to my kernels.
+
+In more detail, Corrfunc computes the standard two-point 
+correlation function (2pcf) on a set of points (locations), 
+which is the excess probability of a pair being located a 
+certain distance r apart, compared to a random Poisson 
+distribution. The estimation of this boils down to computing 
+the distances of N^2 pairs and building up a histogram of 
+these separations. Corrfunc speeds this up by dividing the 
+volume into a grid to minimize the required number of distance 
+calculations, among many other optimizations.
+
+My code, suave, implements a new estimator for the 2pcf, which 
+uses the pair separations to compute a continuous 2pcf. In 
+practice, this requires, at every pair separation r, evaluating 
+K functions f_k(r), and adding the results to a results vector 
+of length K. (For example, if f_k(r) is a tophat function, this
+reduces to the standard, where K is then the number of bins.) 
+For my research I have forked Corrfunc, and in the deep kernels 
+where it finally computes the separation, added a call to f_k(r).
+This function could be standard functions like splines (which 
+then produces essentially a spline fit to the data) or trig 
+functions, or a general user-defined function on some fine grid, 
+which requires interpolation. For my final project, I will 
+vectorize these functions f_k(r). This may also require 
+propogation in other parts of the code. Specifically, I will 
+implement AVX intrinsics, and if time allows, also SSE intrinsics.
